@@ -61,14 +61,6 @@ CutSeqEqu <- function(vecLen, equNum){
 }
 
 
-# load KEGG and BioCyc database
-load('biocycSpe.RData')
-load('bioKEGGSpe.RData')
-load('KEGGCycAPI.RData')
-library(foreach)
-library(doMC)
-library(XML)
-registerDoMC(4)
 
 # the common species
 commSpe <- merge(biocycSpe, bioKEGGSpe, by.x = 'TaxonomyID', by.y = 'TaxonomyID', sort = FALSE)

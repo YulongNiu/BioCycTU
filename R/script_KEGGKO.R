@@ -23,7 +23,7 @@ wNCBISpe <- cyc2Tax(wBiocycSpe[, 1])
 wNCBISpe <- wNCBISpe[order(names(wNCBISpe))]
 wNCBISpe <- wNCBISpe[rank(wBiocycSpe[,1])]
 wBiocycSpe <- cbind(wBiocycSpe, wNCBISpe)
-colnames(wKEGGSpe)[4] <- 'TaxonomyID'
+colnames(wBiocycSpe)[4] <- 'TaxonomyID'
 save(wBiocycSpe, file = 'wBiocycSpe.RData')
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

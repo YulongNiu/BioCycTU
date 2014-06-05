@@ -1,19 +1,14 @@
-#! /usr/bin/Rscript --vanilla
-
-## subunit KOID
-## beta K02112
-## alpha K02111
-## gamma K02115
-## delta K02113
-## epsilon K02114
-## c K02110
-## a K02108
-## b K02109
-
+##' Cut the index according to the input pattern
+##'
+##' Cut the index of a vector based on the input pattern. There is not need to input the index. The sum of 'cutSeq' should be equal to the length of vector, which is used to cut.
+##' @title Cut index
+##' @param cutSeq The input cut pattern. 0 is automatically removed.
+##' @return A matrix of index with two rows.
+##' @examples CutSeq(c(1, 4, 8))
+##' @author Yulong Niu \email{niuylscu@@gmail.com}
+##' @export
+##'
 CutSeq <- function(cutSeq){
-  # USE: cut a vector based on the 'cutSeq'. This function is used to cut "full" seq. It means the sum of 'cutSeq' should be equal to the length of vector, which is used to cut.
-  # INPUT: 'cutSeq' a sequence used to cut the vector.
-  # OUTPUT: the index matrix
 
   # remove 0, because we cannot cut a sequence by the internal of 0.
   cutSeq <- cutSeq[cutSeq != 0]
@@ -41,11 +36,22 @@ CutSeq <- function(cutSeq){
   return(cutMat)
 
 }
-
+##' Cut the index with equal internal.
+##'
+##' The index is cut with equal internals.
+##' @title Cut index with the equal internal.
+##' @param vecLen The length of vector used to cut.
+##' @param equNum Internal number
+##' @return A index matrix.
+##' @examples
+##' CutSeqEqu(10, 2)
+##' CutSeqEqu(10, 3)
+##' # the internal is bigger the length of input index
+##' CutSeqEqu(5, 6)
+##' @author Yulong Niu \email{niuylscu@@gmail.com}
+##' @export
+##'
 CutSeqEqu <- function(vecLen, equNum){
-  # USE: to cut a vector with equal internal.
-  # INPUT: 'vecLen' the length of vector used to cut. 'equNum' the equal internal
-  # OUTPUT: the index matrix.
 
   if (equNum > vecLen){
     # the internal is bigger than the length of vecLen. So we use the full vecLen.
@@ -74,10 +80,6 @@ commProSpe <- commProSpe[!(rownames(commProSpe) %in% delRowName), ]
 
 # some species names changed
 commProSpe[commProSpe[, 2] %in% 'BANT198094-WGS', 2] <- 'ANTHRA'
-
-## # **select species used in phylogenetic profiling**
-## phyloProSpe <- read.csv('wholeListFile.csv', row.names = 1)
-## commProSpe <- commProSpe[commProSpe[, 6] %in% phyloProSpe[, 2], ]
 
 ##' Rearrange KO by species
 ##'

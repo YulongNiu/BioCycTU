@@ -79,43 +79,81 @@ commProSpe[commProSpe[, 2] %in% 'BANT198094-WGS', 2] <- 'ANTHRA'
 ## phyloProSpe <- read.csv('wholeListFile.csv', row.names = 1)
 ## commProSpe <- commProSpe[commProSpe[, 6] %in% phyloProSpe[, 2], ]
 
-# get KO list
-KOVec <- c('K02111', 'K02112', 'K02115', 'K02113', 'K02114', 'K02110', 'K02108', 'K02109')
-names(KOVec) <- c('alpha', 'beta', 'gamma', 'delta', 'epsilon', 'c', 'a', 'b')
-KOList <- vector('list', 8)
-names(KOList) <- paste(names(KOVec), 'KO', sep = '')
-for (i in 1:8) {
-  KOMat <- getKEGGKO(KOVec[i])
-  KOMat <- KOMat[KOMat[, 1] %in% commProSpe[, 6], ]
-  KOList[[i]] <- KOMat
+##' Rearrange KO by species
+##'
+##' It rearrange the given KO vectors according to the species. If the KO gene is missing in one species, it is marked as NA.
+##' @title Rearrange KO by species ID
+##' @param KOvec Vector of KO
+##' @param KOnames names of KO
+##' @param n The number of CPUs or processors, and the default value is 4.
+##' @return
+##' @examples
+##' # Bacterial F1Fo ATP synthase KO
+##' ATPKO <- c('K02111', 'K02112', 'K02115', 'K02113', 'K02114', 'K02110', 'K02108', 'K02109')
+##' ATPKONames <- c('alpha', 'beta', 'gamma', 'delta', 'epsilon', 'c', 'a', 'b')
+##' ATPKObySpe <- KEGGSpeKO(ATPKO, ATPKONames)
+##' @author Yulong Niu \email{niuylscu@@gmail.com}
+##' @importFrom KEGGBioCycAPI getKEGGKO
+##' @importFrom doMC registerDoMC
+##' @importFrom foreach foreach
+##'
+KEGGSpeKO <- function(KOvec, KOnames = NULL, n = 4) {
+
+  require(KEGGBioCycAPI)
+  require(foreach)
+  require(doMC)
+  registerDoMC(n)
+
+  if (is.null(KOVec)) {
+    # without names, so use the KOvec as the names
+    KOnames <- KOvec
+  } else {
+    if (!identical(length(KOvec), length(KOnames))) {
+      stop('The input "KOvec" and "KOnames" should be in the same length.')
+    } else {}
+  }
+
+  # parallel getting KO list
+  KOListPara <- foreach(i = 1:length(KOVec), .inorder = FALSE) %dopar% {
+    KOgenes <- getKEGGKO(KOVec[i])
+    KOMat <- unlist(strsplit(KOgenes, split = ':', fixed = TRUE))
+    KOMat <- matrix(KOMat, ncol = 2, byrow = TRUE)
+    KOnm <- KOnames[i]
+    eachKO <- list(KOMat = KOMat, KOnm = KOnm)
+    return(eachKO)
+  }
+
+  # KOList with KEGG species ID
+  KOList <- sapply(KOListPara, '[[', 1)
+  names(KOList) <- sapply(KOListPara, '[[', 2)
+
+  # whole species List
+  wholeSpe = vector()
+  for (i in 1:8) {
+    wholeSpe = union(wholeSpe, KOList[[i]][, 1])
+  }
+
+  speKOList <- vector('list', length(wholeSpe))
+  names(speKOList) <- wholeSpe
+  for (i in 1:length(wholeSpe)) {
+    eachSpe <- lapply(KOList, function(x) {
+      eachSpeKO <- x[x[, 1] %in% wholeSpe[i], ,drop = FALSE]
+      # some species may lack certain subuints
+      speKONum <- nrow(eachSpeKO)
+      if (speKONum == 0) {
+        uniKO <- NA
+      } else {
+        uniKO <- eachSpeKO[, 2]
+      }
+      return(unname(uniKO))
+    })
+
+    speKOList[[i]] <- unlist(eachSpe)
+  }
+
+  return(speKOList)
 }
 
-# whole species vector
-wholeSpe = vector()
-for (i in 1:8) {
-  wholeSpe = union(wholeSpe, KOList[[i]][, 1])
-}
-
-# merge
-ATPKO <- vector('list', length(wholeSpe))
-names(ATPKO) <- wholeSpe
-for (i in 1:length(wholeSpe)) {
-  eachSpe <- lapply(KOList, function(x) {
-    eachSpeKO <- x[x[, 1] %in% wholeSpe[i], ,drop = FALSE]
-    # some species may lack certain subuints
-    speKONum <- nrow(eachSpeKO)
-    if (speKONum == 0) {
-      uniKO <- NA
-    } else {
-      uniKO <- eachSpeKO[, 2]
-    }
-
-    return(unname(uniKO))
-  })
-
-  ATPKO[[i]] <- unlist(eachSpe)
-
-}
 
 # transfer KEGG ID to BioCyc ID
 # BioCyc speID

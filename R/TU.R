@@ -68,19 +68,6 @@ CutSeqEqu <- function(vecLen, equNum){
 
 
 
-# the common species
-commSpe <- merge(biocycSpe, bioKEGGSpe, by.x = 'TaxonomyID', by.y = 'TaxonomyID', sort = FALSE)
-commProSpe <- commSpe[grepl('Prokaryotes', commSpe[, 8]), ]
-# remove duplicate BioCyc speID according to KEGG speID
-
-commKEGGVec <- commProSpe[duplicated(commProSpe[, 6]), 6]
-commKEGGMat <- commProSpe[commProSpe[, 6] %in% commKEGGVec, ]
-delRowName <- c('553', '839', '1057', '1056', '1066', '1346', '1267', '1481', '1480', '1482', '1582', '1648', '1645', '1647', '1723', '1681', '1666', '1902', '2107', '1918', '2299', '2473')
-commProSpe <- commProSpe[!(rownames(commProSpe) %in% delRowName), ]
-
-# some species names changed
-commProSpe[commProSpe[, 2] %in% 'BANT198094-WGS', 2] <- 'ANTHRA'
-
 ##' Rearrange KO by species
 ##'
 ##' It rearrange the given KO vectors according to the species. If the KO gene is missing in one species, it is marked as NA.
@@ -91,9 +78,13 @@ commProSpe[commProSpe[, 2] %in% 'BANT198094-WGS', 2] <- 'ANTHRA'
 ##' @return
 ##' @examples
 ##' # Bacterial F1Fo ATP synthase KO
-##' ATPKO <- c('K02111', 'K02112', 'K02115', 'K02113', 'K02114', 'K02110', 'K02108', 'K02109')
-##' ATPKONames <- c('alpha', 'beta', 'gamma', 'delta', 'epsilon', 'c', 'a', 'b')
-##' ATPKObySpe <- KEGGSpeKO(ATPKO, ATPKONames)
+##' FATPKO <- c('K02111', 'K02112', 'K02115', 'K02113', 'K02114', 'K02110', 'K02108', 'K02109')
+##' FATPKONames <- c('alpha', 'beta', 'gamma', 'delta', 'epsilon', 'c', 'a', 'b')
+##' FATPKObySpe <- KEGGSpeKO(FATPKO, FATPKONames)
+##' # Bacterial A1Ao ATP synthase KO
+##' AATPKO <- c('K02117', 'K02118', 'K02119', 'K02120', 'K02121', 'K02122', 'K02107', 'K02123', 'K02124')
+##' AATPKONames <- c('A', 'B', 'C', 'D', 'E', 'F', 'H', 'I', 'K')
+##' AATPKObySpe <- KEGGSpeKO(AATPKO, AATPKONames)
 ##' @author Yulong Niu \email{niuylscu@@gmail.com}
 ##' @importFrom KEGGBioCycAPI getKEGGKO
 ##' @importFrom doMC registerDoMC
@@ -106,7 +97,7 @@ KEGGSpeKO <- function(KOvec, KOnames = NULL, n = 4) {
   require(doMC)
   registerDoMC(n)
 
-  if (is.null(KOVec)) {
+  if (is.null(KOvec)) {
     # without names, so use the KOvec as the names
     KOnames <- KOvec
   } else {
@@ -116,8 +107,8 @@ KEGGSpeKO <- function(KOvec, KOnames = NULL, n = 4) {
   }
 
   # parallel getting KO list
-  KOListPara <- foreach(i = 1:length(KOVec), .inorder = FALSE) %dopar% {
-    KOgenes <- getKEGGKO(KOVec[i])
+  KOListPara <- foreach(i = 1:length(KOvec), .inorder = FALSE) %dopar% {
+    KOgenes <- getKEGGKO(KOvec[i])
     KOMat <- unlist(strsplit(KOgenes, split = ':', fixed = TRUE))
     KOMat <- matrix(KOMat, ncol = 2, byrow = TRUE)
     KOnm <- KOnames[i]

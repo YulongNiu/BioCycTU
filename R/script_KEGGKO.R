@@ -27,6 +27,40 @@ colnames(wBiocycSpe)[4] <- 'TaxonomyID'
 save(wBiocycSpe, file = 'wBiocycSpe.RData')
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+########### Preprocess the species list from KEGG and BioCyc ############
+
 # load whole KEGG and BioCyc species information
-load('biocycSpe.RData')
-load('bioKEGGSpe.RData')
+load('wKEGGSpe.RData')
+load('wBiocycSpe.RData')
+
+# preprocess the BioCyc database. Remove the 'TaxonomyID' with ""
+wBiocycSpe <- wBiocycSpe[!(wBiocycSpe[, 'TaxonomyID'] %in% ''), ]
+# rm the BioCycID with the suffix with 'HMP'
+## taxDup <- wBiocycSpe[duplicated(wBiocycSpe[, 'TaxonomyID']), 'TaxonomyID']
+## test1 <- wBiocycSpe[wBiocycSpe[, 'TaxonomyID'] %in% taxDup, ]
+## test1 <- test1[order(test1[, 'TaxonomyID']), ]
+## test2 <- wKEGGSpe[wKEGGSpe[, 'TaxonomyID'] %in% taxDup, ]
+## test2 <- test2[order(test2[, 'TaxonomyID']), ]
+## write.csv(test1, 'test1.csv')
+## write.csv(test2, 'test2.csv')
+reSpe <- c('SSPU546271-HMP', 'PDEN908937-HMP', 'LPAR537973-HMP', 'FSP469604-HMP', '', 'ECOL566546-HMP', 'EFAE333849-HMP', 'CEFF196164-HMP', 'CAUR548476-HMP', 'BABO359391')
+wBiocycSpe <- wBiocycSpe[!(wBiocycSpe[, 'BioCycID'] %in% reSpe), ]
+
+
+
+# preprocess the KEGG database. Remove the duplicated 'TaxonomyID'
+## taxDup <- wKEGGSpe[duplicated(wKEGGSpe[, 'TaxonomyID']), 'TaxonomyID']
+## tmp1 <- wKEGGSpe[wKEGGSpe[, 'TaxonomyID'] %in% taxDup, ]
+## tmp1 <- tmp1[order(tmp1[, 'TaxonomyID']), ]
+## tmp2 <- wBiocycSpe[wBiocycSpe[, 'TaxonomyID'] %in% taxDup, ]
+## tmp2 <- tmp2[order(tmp2[, 'TaxonomyID']), ]
+## test1 <- foreach(i = 1:nrow(tmp1)) %dopar% {
+##   t1 <- getKEGGPathGenes(tmp1[i, 2])
+##   t2 <- t1[names(t1) %in% paste('path:', tmp1[i, 2], '00190', sep = '')]
+##   t2 <- t2[[1]]
+## }
+## names(test1) <- tmp1[, 2]
+## write.csv(tmp1, 'tmp1.csv')
+## write.csv(tmp2, 'tmp2.csv')
+reSpe <- c('scy', 'css', 'syz', 'syy', 'ply', 'tae', 'plr', 'cgb', 'bms', 'tmm', 'tmi', 'tpw', 'msg', 'eru', 'gdj', 'lpu', 'bld', 'chb', 'vca', 'vcr', 'bafz', 'blon', 'bmu', 'osa', 'dosa', 'mtur', 'ebe', 'mre', 'oca', 'edj', 'ell', 'lrh', 'cty', 'fsc', 'ekf', 'hte', 'rai', 'amn', 'mtv', 'heo', 'lpo')
+wKEGGSpe <- wKEGGSpe[!(wKEGGSpe[, 'KEGGID'] %in% reSpe), ]

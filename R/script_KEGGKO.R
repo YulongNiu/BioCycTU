@@ -83,12 +83,12 @@ commList <- commList[order(commList[, 'KEGGID']), ]
 commList <- commList[rank(names(commAATPKO)), ]
 names(commAATPKO) <- commList[, 'BioCycID']
 
-
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # transfer KEGG gene IDs to BioCyc gene IDs
 # BioCyc geneID. Cut the whole length with internal 4
 cutMat <- CutSeqEqu(length(commAATPKO), 4)
 
-for (j in 1:ncol(cutMat)) {
+for (j in 59:ncol(cutMat)) {
   ATPKOCycPart <- foreach (i = cutMat[1, j]:cutMat[2, j]) %dopar% {
     # may have NA
     print(paste('It is running ', j, ' in cutMat. ', 'It is running ', i, ' with the name of ', names(commAATPKO)[i], '.', sep = ''))
@@ -101,3 +101,80 @@ for (j in 1:ncol(cutMat)) {
   save(ATPKOCycPart, file = paste('ATPKOCycPart', cutMat[1, j], '_', cutMat[2, j], '.RData', sep = ''))
   Sys.sleep(30)
 }
+
+# read all the BioCyc genes
+partFile <- dir(pattern="^ATPKOCycPart.*")
+ATPCycList <- foreach(i = 1:length(partFile), .combine = append) %dopar% {
+  load(partFile[i])
+  return(ATPKOCycPart)
+}
+
+# deal with the list
+## sink(file = 'tmp1.txt')
+## ATPCycList[sapply(ATPCycList, is.list)]
+## sink()
+ATPCycList$CSTI499177$A <- 'GJE9-2386'
+ATPCycList$CSTI499177$B <- 'GJE9-2385'
+ATPCycList$HELO768066$A <- 'GJEE-1718'
+ATPCycList$HELO768066$B <- 'GJEE-1724'
+ATPCycList$HELO768066$D <- 'GJEE-1723'
+ATPCycList$HELO768066$I <- 'GJEE-1722'
+ATPCycList$LLON661367$A <- 'GJAR-338'
+ATPCycList$LLON661367$B <- 'GJAR-332'
+ATPCycList$MACE188937$C <- 'GI2O-4209'
+ATPCycList$MACE188937$K <- 'GI2O-4207'
+ATPCycList$`MALC1091494-WGS`$A <- 'GSQK-1672'
+ATPCycList$`MALC1091494-WGS`$B <- 'GSQK-1666'
+ATPCycList$PAMO264201$B <- 'GH0M-1715'
+ATPCycList$BHYO565034$A <- 'GJI7-1902'
+ATPCycList$BHYO565034$B <- 'GJI7-1903'
+ATPCycList$BHYO565034$E <- 'GJI7-1900'
+ATPCycList$BPIL1133568$B <- 'GL9N-312'
+ATPCycList$BPIL759914$B <- 'GHZ5-1034'
+ATPCycList$CNOV386415$B <- 'GH98-780'
+ATPCycList <- sapply(ATPCycList, unlist)
+
+# deal with "0"
+## test1 <- sapply(ATPCycList, function(x) {
+##   if(sum(x == "0", na.rm = TRUE) > 0) {
+##     return(TRUE)
+##   } else {return(FALSE)}
+## })
+## sink(file = 'tmp1.txt')
+## ATPCycList[test1]
+## sink()
+ATPCycList$`FACI333146-WGS`['A'] <- 'GSNJ-959'
+ATPCycList$`FACI333146-WGS`['B'] <- 'GSNJ-958'
+ATPCycList$`FACI333146-WGS`['C'] <- 'GSNJ-961'
+ATPCycList$`FACI333146-WGS`['D'] <- 'GSNJ-957'
+ATPCycList$`FACI333146-WGS`['E'] <- 'GSNJ-962'
+ATPCycList$`FACI333146-WGS`['F'] <- 'GSNJ-960'
+ATPCycList$`FACI333146-WGS`['H'] <- 'GSNJ-955'
+ATPCycList$`FACI333146-WGS`['I'] <- 'GSNJ-954'
+ATPCycList$`FACI333146-WGS`['K'] <- 'GSNJ-963'
+ATPCycList$AXYL698758['C1'] <- 'GL81-572'
+ATPCycList$AXYL698758['F1'] <- 'GL81-575'
+ATPCycList$AXYL698758['I1'] <- 'GL81-573'
+ATPCycList$AXYL698758['K1'] <- 'GL81-574'
+ATPCycList$`TNIT1255043-WGS`['B'] <- 'GSYW-3805'
+ATPCycList$`TNIT1255043-WGS`['D'] <- 'GSYW-3804'
+ATPCycList$`TNIT1255043-WGS`['E'] <- 'GSYW-3807'
+ATPCycList$`TNIT1255043-WGS`['I'] <- 'GSYW-3810'
+ATPCycList$CDIF272563['A'] <- 'GJFE-3189'
+ATPCycList$CDIF272563['B'] <- 'GJFE-3188'
+ATPCycList$CDIF272563['C'] <- 'GJFE-3191'
+ATPCycList$CDIF272563['D'] <- 'GJFE-3187'
+ATPCycList$CDIF272563['E'] <- 'GJFE-3192'
+ATPCycList$CDIF272563['F'] <- 'GJFE-3190'
+ATPCycList$CDIF272563['H'] <- 'GJFE-3195'
+ATPCycList$CDIF272563['I'] <- 'GJFE-3194'
+ATPCycList$CDIF272563['K'] <- 'GJFE-3193'
+ATPCycList$CMUR243161['E'] <- 'GHYU-604'
+ATPCycList$CMUR243161['I'] <- 'GHYU-599'
+ATPCycList$MBOU1201294['A'] <- 'GLGD-173'
+ATPCycList$MBOU1201294['F'] <- 'GLGD-171'
+ATPCycList$MBOU1201294['K'] <- 'GLGD-168'
+# delete TOSH751945
+ATPCycList <- ATPCycList[!(names(ATPCycList) %in% 'TOSH751945')]
+save(ATPCycList, file = 'ATPCycList.RData')
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

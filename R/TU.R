@@ -147,90 +147,6 @@ KEGGSpeKO <- function(KOvec, KOnames = NULL, n = 4) {
   return(speKOList)
 }
 
-
-# transfer KEGG ID to BioCyc ID
-# BioCyc speID
-uniSpe <- commProSpe[commProSpe[, 6] %in% wholeSpe, ]
-uniSpe <- uniSpe[order(as.character(uniSpe[, 6])), ]
-uniSpe <- uniSpe[rank(wholeSpe), ]
-ATPKOKEGGSpe <- names(ATPKO)
-names(ATPKO) <- as.character(uniSpe[, 2])
-
-tmp1 <- ATPKO
-
-# some may contain ''', like 'atpF'', and could not be identified by R ramote server
-for (i in 1:length(ATPKO)) {
-  print(paste('It is running ', i, '.', sep = ''))
-  x <- ATPKO[[i]]
-  KEGGIDVec <- paste(ATPKOKEGGSpe[i], x, sep = ':')
-  KEGGIDVec <- paste(KEGGIDVec, collapse='+')
-  KEGGsymTable <- webTable(paste('http://rest.kegg.jp/list/', KEGGIDVec, sep = ''), n = 2)
-  KEGGsym <- KEGGsymTable[, 2]
-  KEGGsym <- sapply(strsplit(KEGGsym, split = ';', fixed = TRUE), '[', 1)
-  y <- character(length = length(x))
-  y[which(is.na(x))] <- NA
-  y[which(!is.na(x))] <- KEGGsym
-  hasSym <- which(!grepl(' ', y))
-  x[hasSym] <- y[hasSym]
-  ATPKO[[i]] <- x
-}
-
-identical(sapply(tmp1, length), sapply(ATPKO, length))
-identical(sapply(tmp1, is.na), sapply(tmp1, is.na))
-
-# sperate ATPKO
-hasDot <- sapply(ATPKO, function(x) {
-  hasDotEach <- grepl('\'', x)
-  if (sum(hasDotEach) > 0){
-    return(TRUE)
-  } else {
-    return(FALSE)
-  }
-})
-
-save(ATPKO, ATPKOKEGGSpe, file = 'ATPKO.RData')
-
-# ========================== script =======================
-ATPKODot <- ATPKO[hasDot]
-ATPKOKEGGSpeDOT <- ATPKOKEGGSpe[hasDot]
-save(ATPKODot, ATPKOKEGGSpeDOT, file = 'ATPKODOT.RData')
-
-ATPKO <- ATPKO[!hasDot]
-ATPKOKEGGSpe <-ATPKOKEGGSpe[!hasDot]
-save(ATPKO, ATPKOKEGGSpe, file = 'ATPKONODOT.RData')
-# =========================================================
-
-
-# BioCyc geneID. Cut the whole length with internal 4
-cutMat <- CutSeqEqu(length(ATPKODot), 4)
-for (j in 1:ncol(cutMat)) {
-  ATPKOCycPart <- foreach (i = cutMat[1, j]:cutMat[2, j]) %dopar% {
-    # may have NA
-    print(paste('It is running ', i, ' with the name of ', names(ATPKODot)[i], '.', sep = ''))
-    iniVal <- ATPKODot[[i]]
-    iniVal[!is.na(iniVal)] <- sapply(iniVal[!is.na(iniVal)], KEGGID2CycID, speKEGGID = ATPKOKEGGSpeDOT[i], speCycID = names(ATPKODot)[i])
-    return(iniVal)
-  }
-  names(ATPKOCycPart) <- names(ATPKODot)[cutMat[1, j]:cutMat[2, j]]
-  save(ATPKOCycPart, file = paste('ATPKOCycPartDOT', cutMat[1, j], '_', cutMat[2, j], '.RData', sep = ''))
-  Sys.sleep(30)
-}
-
-# BioCyc geneID. Cut the whole length with internal 4
-cutMat <- CutSeqEqu(length(ATPKO), 4)
-for (j in 1:ncol(cutMat)) {
-  ATPKOCycPart <- foreach (i = cutMat[1, j]:cutMat[2, j]) %dopar% {
-    # may have NA
-    print(paste('It is running ', i, ' with the name of ', names(ATPKO)[i], '.', sep = ''))
-    iniVal <- ATPKO[[i]]
-    iniVal[!is.na(iniVal)] <- sapply(iniVal[!is.na(iniVal)], KEGGID2CycID, speKEGGID = ATPKOKEGGSpe[i], speCycID = names(ATPKO)[i])
-    return(iniVal)
-  }
-  names(ATPKOCycPart) <- names(ATPKO)[cutMat[1, j]:cutMat[2, j]]
-  save(ATPKOCycPart, file = paste('ATPKOCycNODOTPart', cutMat[1, j], '_', cutMat[2, j], '.RData', sep = ''))
-  Sys.sleep(60)
-}
-
 list2list <- function(lsInput){
   # not support NA
   ## $alphaKO
@@ -308,29 +224,6 @@ for (i in 1:length(ATPKO)) {
 }
 
 save(ATPTU, file = 'ATPCycPhyloTU.RData')
-
-#################### process the repeat data ################
-load('wholeTUList.RData')
-delNum <- 284
-nonDelNum <- which(!((1:length(wholeTUList)) %in% delNum))
-wholeTUList <- wholeTUList[nonDelNum]
-
-duNames <- names(wholeTUList)[which(duplicated(names(wholeTUList)))]
-which(names(wholeTUList) %in% duNames)
-wholeTUList[which(names(wholeTUList) %in% duNames)]
-
-
-load('ATPKOCyc.RData')
-delNum <- c(1240, 1293, 1428, 1857)
-nonDelNum <- which(!((1:length(ATPKOCyc)) %in% delNum))
-ATPKOCyc <- ATPKOCyc[nonDelNum]
-
-duNames <- names(ATPKOCyc)[which(duplicated(names(ATPKOCyc)))]
-which(names(ATPKOCyc) %in% duNames)
-ATPKOCyc[which(names(ATPKOCyc) %in% duNames)]
-
-
-
 
 ############## calculate the loss/repeat ATP ############
 ATPSubMat <- matrix(ncol = 8, nrow = length(ATPKO))

@@ -29,7 +29,6 @@ save(wBiocycSpe, file = 'wBiocycSpe.RData')
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ########### Preprocess the species list from KEGG and BioCyc ############
-
 # load whole KEGG and BioCyc species information
 load('wKEGGSpe.RData')
 load('wBiocycSpe.RData')
@@ -174,7 +173,167 @@ ATPCycList$CMUR243161['I'] <- 'GHYU-599'
 ATPCycList$MBOU1201294['A'] <- 'GLGD-173'
 ATPCycList$MBOU1201294['F'] <- 'GLGD-171'
 ATPCycList$MBOU1201294['K'] <- 'GLGD-168'
+ATPCycList$`CTRA1071771-WGS`['I'] <- 'GSK2-309'
 # delete TOSH751945
 ATPCycList <- ATPCycList[!(names(ATPCycList) %in% 'TOSH751945')]
+# duplicated names
+ATPCycList <- ATPCycList[!duplicated(names(ATPCycList))]
 save(ATPCycList, file = 'ATPCycList.RData')
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+############### TU ###################
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+load('ATPCycList.RData')
+ATPTU <- vector('list', length(ATPCycList))
+names(ATPTU) <- names(ATPCycList)
+for (i in 66:length(ATPCycList)) {
+  print(paste('It is running ', i, '.', sep = ''))
+  # get TU name
+  eachTU <- lapply(ATPCycList[[i]], function(x) {
+    if (is.na(x)) {
+      TU <- NA
+    } else {
+      eachGeneInfo <- getCycTUfGene(x, speID = names(ATPCycList)[i])
+      TU <- eachGeneInfo
+      if (is.null(TU)) {
+        TU <- NA
+      } else {}
+    }
+    return(TU)
+  })
+
+  # range the list
+  # select non NA
+  hasNA <- sapply(eachTU, function(x) {
+    if (sum(is.na(x)) > 0) {
+      return(TRUE)
+    } else {
+      return(FALSE)
+    }
+  })
+
+  TUnona <- eachTU[which(!hasNA)]
+  TUList <- list2list(TUnona)
+
+  # select NA
+  TUna <- eachTU[which(hasNA)]
+  if (length(TUna) != 0) {
+    TUList$noTU <- names(TUna)
+  } else {}
+
+  ATPTU[[i]] <- TUList
+  Sys.sleep(30)
+}
+ATPTU <- ATPTU[!duplicated(names(ATPTU))]
+save(ATPTU, file = 'ATPTU.RData')
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+load('ATPTU.RData')
+load('ATPCycList.RData')
+for (i in 508:length(ATPTU)) {
+  print(paste('It is running ', i, ' with the name ', names(ATPTU[i]), sep = ''))
+  TUListOrder <- ATPTU[[i]]
+  speID <- names(ATPTU[i])
+  speGenes <- ATPCycList[[which(names(ATPCycList) %in% speID)]]
+
+  for (j in 1:length(ATPTU[[i]])) {
+    if (names(ATPTU[[i]][j]) != 'noTU') {
+      if (length(ATPTU[[i]][[j]]) > 1) {
+        cycGenesOrder <- getCycTUInfo(names(ATPTU[[i]])[j], speID)
+        cycGenesOrder <- cycGenesOrder$geneIDs
+        TUKO <- ATPTU[[i]][[j]]
+        TUgenes <- speGenes[names(speGenes) %in% TUKO]
+        TUgenesOrder <- cycGenesOrder[cycGenesOrder %in% TUgenes]
+        TUgenesNames <- sapply(TUgenesOrder, function(x) {
+          y <- names(speGenes[speGenes %in% x])
+          return(y)
+        })
+        names(TUgenesOrder) <- TUgenesNames
+      }
+      else if (length(ATPTU[[i]][[j]]) == 1){
+        # only have one element
+        TUgenesOrder <- speGenes[names(speGenes) %in% ATPTU[[i]][[j]]]
+      }
+    } else {
+      TUgenesOrder = speGenes[names(speGenes) %in% ATPTU[[i]][[j]]]
+    }
+
+    TUListOrder[[j]] <- TUgenesOrder
+  }
+  TUListOrder <- list(TUListOrder)
+  names(TUListOrder) <- names(ATPTU[i])
+
+  save(TUListOrder, file = paste('TUListOrder_', i, '.RData', sep = ''))
+
+}
+
+TUOrder <- dir(pattern="^TUListOrder_.*")
+TUOrderList <- foreach(i = 1:length(TUOrder), .combine = append) %dopar% {
+  load(TUOrder[i])
+  return(TUListOrder)
+}
+
+save(TUOrderList, file = 'TUOrderList.RData')
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+################## continuous TU #############################
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+load('TUOrderList.RData')
+TUOrderListCon <- vector('list', length = length(TUOrderList))
+names(TUOrderListCon) <- names(TUOrderList)
+
+contiMat <- function(vec) {
+  # example contiMat(c(1:3, 5:7, 9))
+  diffs <- c(1, diff(vec))
+  start_indexes <- c(1, which(abs(diffs) > 1))
+  end_indexes <- c(start_indexes - 1, length(vec))
+  contiMat <- cbind(vec[start_indexes], vec[end_indexes])
+  return(contiMat)
+}
+
+TUListEachCon <- function(x) {
+  # x is an list of TU
+  TUNames <- names(x)
+  if ('noTU' %in% TUNames) {
+    noTUList <- list(noTU = x$noTU)
+    TUNames <- TUNames[!(TUNames %in% 'noTU')]
+  } else {
+    noTUList <- list(noTU = NULL)
+  }
+
+  # split names by '-'
+  TUNamesNum <- sapply(strsplit(TUNames, split = '-', fixed = TRUE), '[', 2)
+  names(TUNames) <- TUNamesNum
+  TUNamesNum <- as.numeric(TUNamesNum)
+
+  # order TU numbers
+  TUNamesMat <- contiMat(sort(TUNamesNum))
+
+  TUListCon <- vector('list', length = nrow(TUNamesMat))
+
+  for (i in 1:nrow(TUNamesMat)) {
+    if (diff(c(TUNamesMat[i, 1], TUNamesMat[i, 2])) == 0) {
+      selectTUNames <- names(TUNames) %in% as.character(TUNamesMat[i, 1])
+      TUListCon[i] <- x[which(selectTUNames)]
+      names(TUListCon)[i] <- TUNames[which(selectTUNames)]
+    } else {
+      selectTUNames <- names(TUNames) %in% as.character(TUNamesMat[i, 1] : TUNamesMat[i, 2])
+      TUListConSel <- unlist(x[which(selectTUNames)])
+      namesTUListConSel <- names(TUListConSel)
+      namesTUListConSel <- sapply(strsplit(namesTUListConSel, split = '.', fixed = TRUE), '[', 2)
+      names(TUListConSel) <- namesTUListConSel
+      TUListCon[[i]] <- sort(TUListConSel)
+      names(TUListCon)[i] <- paste(TUNames[which(selectTUNames)], collapse = '|')
+    }
+  }
+
+  if (!is.null(noTUList$noTU)) {
+    TUListCon <- append(TUListCon, noTUList)
+  } else {}
+
+  return(TUListCon)
+}
+
+TUOrderListCon <- sapply(TUOrderList, TUListEachCon)
+save(TUOrderListCon, file = 'TUOrderListCon.RData')
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

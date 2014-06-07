@@ -3,6 +3,7 @@ library(foreach)
 library(doMC)
 registerDoMC(4)
 
+#################### Get whole KEGG and BioCyc species lists #################
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Create the whole a KEGG and BioCyc List.
 # Afer that, two dataset 'wBiocycSpe.RData' and 'wKEGGSpe.RData' will be created.
@@ -64,3 +65,39 @@ wBiocycSpe <- wBiocycSpe[!(wBiocycSpe[, 'BioCycID'] %in% reSpe), ]
 ## write.csv(tmp2, 'tmp2.csv')
 reSpe <- c('scy', 'css', 'syz', 'syy', 'ply', 'tae', 'plr', 'cgb', 'bms', 'tmm', 'tmi', 'tpw', 'msg', 'eru', 'gdj', 'lpu', 'bld', 'chb', 'vca', 'vcr', 'bafz', 'blon', 'bmu', 'osa', 'dosa', 'mtur', 'ebe', 'mre', 'oca', 'edj', 'ell', 'lrh', 'cty', 'fsc', 'ekf', 'hte', 'rai', 'amn', 'mtv', 'heo', 'lpo')
 wKEGGSpe <- wKEGGSpe[!(wKEGGSpe[, 'KEGGID'] %in% reSpe), ]
+
+#################### transfer KEGG gene ID to BioCyc gene ID #################
+# get A1Ao ATP synthase KO
+AATPKO <- c('K02117', 'K02118', 'K02119', 'K02120', 'K02121', 'K02122', 'K02107', 'K02123', 'K02124')
+AATPKONames <- c('A', 'B', 'C', 'D', 'E', 'F', 'H', 'I', 'K')
+AATPKObySpe <- KEGGSpeKO(AATPKO, AATPKONames)
+
+# merge species lists
+mergeList <- merge(wBiocycSpe, wKEGGSpe, by.x = 'TaxonomyID', by.y = 'TaxonomyID')
+
+# transfer to BioCyc species ID
+commSpeIDs <- intersect(names(AATPKObySpe), mergeList[, 'KEGGID'])
+commAATPKO <- AATPKObySpe[names(AATPKObySpe) %in% commSpeIDs]
+commList <- mergeList[mergeList[, 'KEGGID'] %in% commSpeIDs, ]
+commList <- commList[order(commList[, 'KEGGID']), ]
+commList <- commList[rank(names(commAATPKO)), ]
+names(commAATPKO) <- commList[, 'BioCycID']
+
+
+# transfer KEGG gene IDs to BioCyc gene IDs
+# BioCyc geneID. Cut the whole length with internal 4
+cutMat <- CutSeqEqu(length(commAATPKO), 4)
+
+for (j in 1:ncol(cutMat)) {
+  ATPKOCycPart <- foreach (i = cutMat[1, j]:cutMat[2, j]) %dopar% {
+    # may have NA
+    print(paste('It is running ', j, ' in cutMat. ', 'It is running ', i, ' with the name of ', names(commAATPKO)[i], '.', sep = ''))
+    iniVal <- commAATPKO[[i]]
+    iniVal[!is.na(iniVal)] <- sapply(iniVal[!is.na(iniVal)], KEGGID2CycID, speKEGGID = commList[i, 'KEGGID'], speCycID = names(commAATPKO)[i])
+    return(iniVal)
+  }
+
+  names(ATPKOCycPart) <- names(commAATPKO)[cutMat[1, j]:cutMat[2, j]]
+  save(ATPKOCycPart, file = paste('ATPKOCycPart', cutMat[1, j], '_', cutMat[2, j], '.RData', sep = ''))
+  Sys.sleep(30)
+}

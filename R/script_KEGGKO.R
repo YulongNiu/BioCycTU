@@ -170,7 +170,7 @@ ATPCycList$CDIF272563['I'] <- 'GJFE-3194'
 ATPCycList$CDIF272563['K'] <- 'GJFE-3193'
 ATPCycList$CMUR243161['E'] <- 'GHYU-604'
 ATPCycList$CMUR243161['I'] <- 'GHYU-599'
-ATPCycList$MBOU1201294['A'] <- 'GLGD-173'
+ATPCycList$MBOU1201294['A'] <- 'GLGD-172'
 ATPCycList$MBOU1201294['F'] <- 'GLGD-171'
 ATPCycList$MBOU1201294['K'] <- 'GLGD-168'
 ATPCycList$`CTRA1071771-WGS`['I'] <- 'GSK2-309'
@@ -337,3 +337,173 @@ TUListEachCon <- function(x) {
 TUOrderListCon <- sapply(TUOrderList, TUListEachCon)
 save(TUOrderListCon, file = 'TUOrderListCon.RData')
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+########### precess the TUOrder data, add "KO" in each subunits' name ##########
+load('TUOrderList.RData')
+load('TUOrderListCon.RData')
+
+getcontent <- function(s,g) {
+  substring(s,g,g+attr(g,'match.length')-1)
+}
+
+TUOrderList <- lapply(TUOrderList, function(x) {
+  lapply(x, function(y) {
+    # select the character ones
+    chaName <- regexpr('[a-zA-Z]+', names(y))
+    chaName <- getcontent(names(y), chaName)
+    numName <- regexpr('\\d+', names(y))
+    numName <- getcontent(names(y), numName)
+    names(y) <- paste(chaName, 'KO', numName, sep = '')
+    return(y)
+  })
+})
+
+TUOrderListCon <- lapply(TUOrderListCon, function(x) {
+  lapply(x, function(y) {
+    # select the character ones
+    chaName <- regexpr('[a-zA-Z]+', names(y))
+    chaName <- getcontent(names(y), chaName)
+    numName <- regexpr('\\d+', names(y))
+    numName <- getcontent(names(y), numName)
+    names(y) <- paste(chaName, 'KO', numName, sep = '')
+    return(y)
+  })
+})
+
+save(TUOrderList, file = 'TUOrderList.RData')
+save(TUOrderListCon, file = 'TUOrderListCon.RData')
+
+################## process TU order ################
+load('TUOrderList.RData')
+load('TUOrderListCon.RData')
+
+stanCut <- c('D', 'B', 'A', 'F', 'C', 'E', 'K', 'I', 'H')
+
+preTUCut <- function(preTU, stanSeq, noTU = FALSE){
+  # pre-process the input TU sequence
+  # if noTU is TRUE, we prefer to order the noTU elements according to the stanSeq.
+  greStanSeq <- paste('^', stanSeq, 'KO', sep = '')
+  TU <- vector(length = length(preTU))
+
+  getcontent <- function(s,g) {
+    substring(s,g,g+attr(g,'match.length')-1)
+  }
+
+  for (i in 1:length(preTU)){
+    for (j in 1:length(greStanSeq)) {
+      grepNum <- gregexpr(greStanSeq[j], preTU[i])[[1]]
+      if (grepNum > 0) {
+        grepSeq <- getcontent(preTU[i], grepNum)
+        grepSeq <- substr(grepSeq, 1, nchar(grepSeq) - 2)
+        TU[i] <- grepSeq
+      } else {}
+    }
+  }
+
+  #========= remove repeat, beacuse I suppose the repeat doesn't has matter to cut point ===========
+  TU <- TU[!duplicated(TU)]
+  if (noTU) {
+    stanCutTU <- stanCut[stanCut %in% TU]
+    # order noTU elements
+    TU <- TU[order(TU)]
+    TU <- TU[rank(stanCutTU)]
+  } else {}
+
+  return(TU)
+
+}
+
+##' Get the cut point by TU.
+##'
+##' Get the cut point by a given transcription unit
+##' @title Get the cut point.
+##' @param TU The input TU vector.
+##' @param stanSeq The standard TU sequence
+##' @return A vector of the cut point
+##' @examples
+##' @author Yulong Niu \email{niuylscu@@gmail.com}
+cutTU <- function(TU, stanSeq) {
+
+  TUNum <- sapply(TU, function(x){
+    num <- which(stanSeq %in% x)
+    return(num)
+  })
+
+  contiMat <- function(vec) {
+    # example contiMat(c(1:3, 5:7, 9))
+    diffs <- c(1, diff(vec))
+    start_indexes <- c(1, which(abs(diffs) > 1))
+    end_indexes <- c(start_indexes - 1, length(vec))
+    contiMat <- cbind(vec[start_indexes], vec[end_indexes])
+    return(contiMat)
+  }
+
+  cutTUmat <- contiMat(TUNum)
+
+  # +1 to the bigger cut point in each row
+  cutTUmat <- t(apply(cutTUmat, 1, function(x){
+    x[which.max(x)] <- x[which.max(x)] + 1
+    return(x)
+  }))
+
+  return(cutTUmat)
+
+}
+
+
+
+load('TUOrderList.RData')
+library(foreach)
+library(doMC)
+registerDoMC(4)
+
+CutListVec <- function(orderList, stanSeq, cutIn = FALSE) {
+  TUCutList <- lapply(orderList, function(x) {
+    eachTU <- vector('list', length = length(x))
+    for (i in 1:length(x)) {
+      names(eachTU) <- names(x)
+      if (names(x[i]) == 'noTU') {
+        eachTUPreCut <- preTUCut(names(x[[i]]), stanSeq, noTU = TRUE)
+      } else {
+        eachTUPreCut <- preTUCut(names(x[[i]]), stanSeq)
+      }
+      eachTU[[i]] <- cutTU(eachTUPreCut, stanSeq)
+    }
+    return(eachTU)
+  })
+
+  if (!cutIn) {
+    TUCutMat <- foreach(i = 1:length(TUCutList), .combine = rbind) %dopar% {
+      foreach(j = 1:length(TUCutList[[i]]), .combine = rbind) %dopar% {
+        t(apply(TUCutList[[i]][[j]], 1, sort))
+      }
+    }
+  } else {
+    # summary the cut in number in one TU
+    TUCutMat <- foreach(i = 1:length(TUCutList), .combine = rbind) %dopar% {
+      foreach(j = 1:length(TUCutList[[i]]), .combine = rbind) %dopar% {
+        if (nrow(TUCutList[[i]][[j]]) > 1) {
+          t(apply(TUCutList[[i]][[j]], 1, sort))
+        } else {}
+      }
+    }
+  }
+
+  TUCutVec <- apply(TUCutMat, 1, paste, collapse = '-')
+
+  TUCutTable <- table(TUCutVec)
+  fullName <- apply(combn(length(stanCut)+1, 2), 2, paste, collapse = '-')
+  fullIni <- numeric(length = length(fullName))
+  names(fullIni) <- fullName
+  fullIni[which(names(fullIni) %in% sort(names(TUCutTable)))] <- TUCutTable
+
+  ## cutNum <- sapply(TUCutVec, function(x) {
+  ##   eachTUCut <- sum(sapply(x, nrow))
+  ## })
+  ## TUNum <- sapply(orderList, length)
+
+  ## return(fullIni)
+  return(fullIni)
+}
+
+TUcutNum <- CutListVec(TUOrderListCon, stanCut)
